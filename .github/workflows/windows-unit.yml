@@ -1,10 +1,11 @@
-name: Windows build
+name: Windows unit
 
 on:
   push:
     branches:
       - master
       - develop
+      - windows-test-ci
   pull_request:
     branches:
       - '**'
@@ -53,4 +54,32 @@ jobs:
       - name: nmake build
         shell: cmd
         run: nmake
+        working-directory: build_dir
+        
+  cmake-nmake-build-and-test:
+    name: CMake with NMake build and execution of the unit tests on Windows MSVC
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        float-precision: [2]
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ilammy/msvc-dev-cmd@v1
+      
+      - name: make build directory
+        shell: cmd
+        run: mkdir build_dir
+        
+      - name: cmake configure
+        shell: cmd
+        run: cmake .. -G "NMake Makefiles" -DTESTING:BOOL=ON -DPRECISION:STRING=${{matrix.float-precision}}
+        working-directory: build_dir
+
+      - name: cmake build
+        run: cmake --build . --parallel 2 --target tests
+        working-directory: build_dir
+
+      - name: cmake test
+        run: ctest -j2 --output-on-failure -E mixMultiQubitKrausMap
         working-directory: build_dir
