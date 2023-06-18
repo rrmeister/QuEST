@@ -33,7 +33,7 @@ option(GPUACCELERATED "Whether to program will run on GPU. Set to 1 to enable" 0
 
 set(GPU_COMPUTE_CAPABILITY 30 CACHE STRING "GPU hardware dependent, lookup at https://developer.nvidia.com/cuda-gpus. Write without fullstop")
 
-
+option(USE_FFTW "Whether to use FFTW for QFT calls" 1)
 
 # *****************************************************************************
 # ***** NO CHANGES SHOULD BE REQUIRED FROM THE USER BEYOND THIS POINT *********
@@ -44,6 +44,7 @@ message(STATUS "Precision is ${PRECISION}")
 message(STATUS "GPU acceleration is ${GPUACCELERATED}")
 message(STATUS "OMP acceleration is ${MULTITHREADED}")
 message(STATUS "MPI distribution is ${DISTRIBUTED}")
+message(STATUS "FFTW library is ${USE_FFTW}")
 
 
 # -----------------------------------------------------------------------------
@@ -338,6 +339,13 @@ target_compile_definitions(QuEST
     QuEST_PREC=${PRECISION}
 )
 
+if (USE_FFTW)
+    target_compile_definitions(QuEST
+        PUBLIC
+        USE_FFTW
+    )
+endif()
+
 # -----------------------------------------------------------------------------
 # ----- LINK LIBRARY ---------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -356,6 +364,14 @@ target_link_libraries(QuEST PUBLIC ${MPI_C_LIBRARIES})
 
 target_link_libraries(QuEST ${CUDA_LIBRARIES})
 
+# ----- FFTW ------------------------------------------------------------------
+
+if (USE_FFTW)
+    if (MULTITHREADED)
+        target_link_libraries(QuEST PUBLIC fftw3_omp)
+    endif()
+    target_link_libraries(QuEST PUBLIC fftw3)
+endif()
 
 # ----- Coverage testing with GCC or Clang ------------------------------------
 option(QUEST_ENABLE_COVERAGE "Enable coverage reporting for GCC or Clang" FALSE)
