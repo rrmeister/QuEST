@@ -281,6 +281,9 @@ void statevec_copySubstateFromGPU(Qureg qureg, long long int startInd, long long
 
 void statevec_applySubDiagonalOp(Qureg qureg, int* targets, SubDiagonalOp op, int conj);
 
+# ifdef USE_FFTW
+void statevec_applyRangeQFT_FFTW(Qureg qureg, int startQubit, int endQubit, int backwards);
+# endif
 
 /* 
  * operations which differentiate between state-vectors and density matrices internally 

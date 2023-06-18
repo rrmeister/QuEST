@@ -26,6 +26,9 @@
 # include <omp.h>
 # endif
 
+# ifdef USE_FFTW
+# include <fftw3.h>
+# endif
 
 void densmatr_mixDepolarising(Qureg qureg, int targetQubit, qreal depolLevel) {
     if (depolLevel == 0)
@@ -177,7 +180,13 @@ QuESTEnv createQuESTEnv(void) {
     env.seeds = NULL;
     env.numSeeds = 0;
     seedQuESTDefault(&env);
-    
+
+# ifdef _OPENMP
+# ifdef USE_FFTW
+    fftw_init_threads();
+    fftw_plan_with_nthreads(omp_get_max_threads());
+# endif
+# endif
     return env;
 }
 
@@ -379,3 +388,41 @@ Complex densmatr_calcExpecDiagonalOp(Qureg qureg, DiagonalOp op) {
     
     return densmatr_calcExpecDiagonalOpLocal(qureg, op);
 }
+
+# ifdef USE_FFTW
+void statevec_applyRangeQFT_FFTW(Qureg qureg, int startQubit, int endQubit, int backwards) {
+    fftw_iodim transform_dims = { .n = 1 << (endQubit - startQubit + 1), .is = 1 << startQubit, .os = 1 << startQubit};
+    fftw_iodim repeat_dims[2];
+    int numRepeatDims = 0;
+    if (startQubit > 0) {
+        repeat_dims[numRepeatDims] = (fftw_iodim) {  // repeat over less significant qubits
+            .n = 1 << startQubit,
+            .is = 1,
+            .os = 1};
+        numRepeatDims++;
+    }
+    if (endQubit < qureg.numQubitsRepresented - 1) {
+        repeat_dims[numRepeatDims] = (fftw_iodim) {  // repeat over more significant qubits
+            .n = 1 << (qureg.numQubitsRepresented - endQubit - 1),
+            .is = 1 << (endQubit + 1),
+            .os = 1 << (endQubit + 1)};
+        numRepeatDims++;
+    }
+    fftw_plan qft_plan;
+    // FFTW has the convention that the forwards transform has a negative exponent, the QFT in QuEST has a positive one.
+    if (backwards) {
+        // For the backwards transform, we can call the usual FFTW forwards transform.
+        qft_plan = fftw_plan_guru_split_dft(1, &transform_dims, numRepeatDims, repeat_dims, qureg.stateVec.real, qureg.stateVec.imag, qureg.stateVec.real, qureg.stateVec.imag, FFTW_ESTIMATE);
+    }
+    else {
+        // For the forwards transform, we can swap the real and imag parts, which is equivalent to flipping the exponent sign.
+        qft_plan = fftw_plan_guru_split_dft(1, &transform_dims, numRepeatDims, repeat_dims, qureg.stateVec.imag, qureg.stateVec.real, qureg.stateVec.imag, qureg.stateVec.real, FFTW_ESTIMATE);
+    }
+    fftw_execute(qft_plan);
+    fftw_destroy_plan(qft_plan);
+    // FFTW uses a DFT convention without prefactors, so we must manually scale the result to get a normalised state.
+    Complex zero = {.real = 0, .imag = 0};
+    Complex norm_fact = {.real = 1 / sqrt(1 << (endQubit - startQubit + 1)), .imag = 0};
+    statevec_setWeightedQureg(zero, qureg, zero, qureg, norm_fact, qureg);
+}
+# endif
