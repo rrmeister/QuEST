@@ -881,6 +881,15 @@ void applyQFT(Qureg qureg, int* qubits, int numQubits) {
     qasm_recordComment(qureg, "End of QFT circuit");
 }
 
+# ifdef USE_FFTW
+void applyRangeQFT_FFTW(Qureg qureg, int startQubit, int endQubit) {
+    statevec_applyRangeQFT_FFTW(qureg, startQubit, endQubit, 0);
+}
+void applyRangeIQFT_FFTW(Qureg qureg, int startQubit, int endQubit) {
+    statevec_applyRangeQFT_FFTW(qureg, startQubit, endQubit, 1);
+}
+# endif
+
 void applyFullQFT(Qureg qureg) {
 
     qasm_recordComment(qureg, "Beginning of QFT circuit");

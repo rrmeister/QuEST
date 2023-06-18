@@ -7179,6 +7179,13 @@ void applyFullQFT(Qureg qureg);
  */
 void applyQFT(Qureg qureg, int* qubits, int numQubits);
 
+# ifdef USE_FFTW
+// Apply a QFT to an ordered continuous subset of qubits in a register using FFTW; temporary for testing
+void applyRangeQFT_FFTW(Qureg qureg, int startQubit, int endQubit);
+
+void applyRangeIQFT_FFTW(Qureg qureg, int startQubit, int endQubit);
+# endif
+
 /** Force the target \p qubit of \p qureg into the given classical \p outcome, via a 
  * non-renormalising projection.
  *
